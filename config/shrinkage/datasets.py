@@ -31,8 +31,8 @@ DATASETS_REGRESSION = [
     # ('abalone', '183', 'openml'),
     ("diabetes-regr", "diabetes", 'sklearn'),
     ("california-housing", "california_housing", 'sklearn'),  # this replaced boston-housing due to ethical issues
-    ("red-wine", "294_satellite_image", 'pmlb'),
-    ("geographical-music", "1199_BNG_echoMonths", 'pmlb'),
+    # ("red-wine", "294_satellite_image", 'pmlb'),
+    # ("geographical-music", "1199_BNG_echoMonths", 'pmlb'),
     # ("breast-tumor", "1201_BNG_breastTumor", 'pmlb'),  # this one is v big (100k examples)
 
 ]
