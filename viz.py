@@ -19,7 +19,7 @@ import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
 
-from config.figs_interactions.datasets import DATASETS_REGRESSION
+from config.shrinkage.datasets import DATASETS_CLASSIFICATION, DATASETS_REGRESSION
 from util import remove_x_axis_duplicates, merge_overlapping_curves
 
 dvu.set_style()
@@ -43,16 +43,16 @@ DSET_METADATA = {'sonar': (208, 60), 'heart': (270, 15), 'breast-cancer': (277, 
                  }
 
 
-def plot_comparisons(metric='rocauc', datasets=[],
+def plot_comparisons(metric='r2', datasets=[],
                      models_to_include=['FIGS', 'CART'],
                      models_to_include_dashed=[],
-                     config_name='figs',
+                     config_name='shrinkage',
                      color_legend=True,
                      seed=None,
                      eps_legend_sep=0.01,
                      save_name='fig',
                      show_train=False,
-                     xlim=20,
+                     xlim=10,
                      C=3):
     """Plots curves for different models as a function of complexity
     Note: for best legends, pass models_to_include from top to bottom
@@ -71,7 +71,7 @@ def plot_comparisons(metric='rocauc', datasets=[],
         'CART': 'orange',  # cp,
         'Rulefit': 'green',
         'C45': cb,
-        'CART_(MSE)': 'orange',
+        'CART_(MSE)': 'red',
         'CART_(MAE)': cg,
         'FIGS_(Reweighted)': cg,
         'FIGS_(Include_Linear)': cb,
@@ -84,6 +84,8 @@ def plot_comparisons(metric='rocauc', datasets=[],
         'GBDT': 'black',
         'BFIGS': 'green',
         'TAO': cb,
+        "HSCART_Ridge": 'green',
+        "HSCART_TV": 'blue',
     }
 
     for i, dset in enumerate(tqdm(datasets)):
@@ -107,6 +109,8 @@ def plot_comparisons(metric='rocauc', datasets=[],
             suffix = ''
         texts = []
         ys = []
+        y_min = 1
+        y_max = 0
         for name in models_to_include_dashed + models_to_include:
             try:
                 g = df.groupby('estimator').get_group(name)
@@ -119,9 +123,16 @@ def plot_comparisons(metric='rocauc', datasets=[],
             #         for _, (name, g) in enumerate(df.groupby('estimator')):
             #             if name in models_to_include + models_to_include_dashed:
             # print('g keys', g.keys())
-            x = g['complexity' + suffix].values
+            x = g["max_leaf_nodes"].values
             y = g[f'{metric}_test' + suffix].values
             yerr = g[f'{metric}_test' + '_std'].values
+            # plot error bars
+
+            ax.errorbar(x, y,yerr, **dict(color=COLORS.get(name, 'gray')), label=name)
+            y_min = min(y_min, np.min(y-yerr))
+            y_max = max(y_max, np.max(y+yerr))
+            continue
+            # continue
             args = np.argsort(x)
             if name in ['FIGS', 'TAO']:
                 alpha = 1.0
@@ -182,9 +193,12 @@ def plot_comparisons(metric='rocauc', datasets=[],
             if show_train:
                 plt.plot(g[f'complexity_train'][args], g[f'{dset_name}_{metric}_train'][args], '.--', **kwargs,
                          label=name + ' (Train)')
-            plt.xlabel('Number of splits')
+            plt.xlabel('Max depth')
             if xlim is not None:
                 plt.xlim((0, xlim))
+        ax.set_ylim((y_min, y_max))
+        if i == 0:
+            ax.legend()
         #         if i % C == C - 1:
         if i % C == 0:  # left col
             plt.ylabel(metric.upper()
@@ -467,7 +481,10 @@ def viz_interactions(datasets=[],
 
 
 if __name__ == '__main__':
-    pth = "/accounts/campus/omer_ronen/projects/tree_shrink/imodels-experiments"
-    viz_interactions(DATASETS_REGRESSION,
-                     ["BFIGS", "DT", "FIGS", "GB", "RF"],
-                     save_path=f"{pth}/results/figs_interactions")
+    # pth = "/accounts/campus/omer_ronen/projects/tree_shrink/imodels-experiments"
+    # viz_interactions(DATASETS_REGRESSION,
+    #                  ["BFIGS", "DT", "FIGS", "GB", "RF"],
+    #                  save_path=f"{pth}/results/figs_interactions")
+    plot_comparisons(datasets=DATASETS_REGRESSION,
+                     models_to_include=["CART_(MSE)", "HSCART_Ridge", "HSCART_TV"],
+                     metric="r2")
