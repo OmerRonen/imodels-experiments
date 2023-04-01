@@ -40,6 +40,7 @@ DSET_METADATA = {'sonar': (208, 60), 'heart': (270, 15), 'breast-cancer': (277, 
                  'california-housing': (20640, 8), 'satellite-image': (6435, 36), 'echo-months': (17496, 9),
                  'breast-tumor': (116640, 9), "vo_pati": (100, 100), "radchenko_james": (300, 50),
                  'tbi-pecarn': (42428, 121), 'csi-pecarn': (3313, 36), 'iai-pecarn': (12044, 58),
+                 "geographical-music": (1059, 68), "red-wine": (4898, 12)
                  }
 
 
@@ -129,8 +130,10 @@ def plot_comparisons(metric='r2', datasets=[],
             # plot error bars
 
             ax.errorbar(x, y,yerr, **dict(color=COLORS.get(name, 'gray')), label=name)
-            y_min = min(y_min, np.min(y-yerr))
-            y_max = max(y_max, np.max(y+yerr))
+            min_y_plt = np.min(y - yerr)
+            max_y_plt = np.max(y + yerr)
+            y_min = min(y_min, min_y_plt)
+            y_max = max(y_max, max_y_plt)
             continue
             # continue
             args = np.argsort(x)
@@ -486,5 +489,8 @@ if __name__ == '__main__':
     #                  ["BFIGS", "DT", "FIGS", "GB", "RF"],
     #                  save_path=f"{pth}/results/figs_interactions")
     plot_comparisons(datasets=DATASETS_REGRESSION,
-                     models_to_include=["CART_(MSE)", "HSCART_Ridge", "HSCART_TV"],
+                     models_to_include=["CART", "HSCART_Ridge", "HSCART_TV"],
                      metric="r2")
+    # plot_comparisons(datasets=DATASETS_CLASSIFICATION,
+    #                  models_to_include=["CART", "HSCART_Ridge", "HSCART_TV"],
+    #                  metric="rocauc")
