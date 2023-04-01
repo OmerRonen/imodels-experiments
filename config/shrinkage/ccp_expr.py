@@ -9,7 +9,9 @@ from imodels import get_clean_dataset, HSTreeRegressorCV
 from sklearn.model_selection import cross_val_score
 from sklearn.tree import DecisionTreeRegressor
 
-from config.shrinkage.datasets import DATASETS_REGRESSION
+from datasets import DATASETS_REGRESSION
+
+
 
 
 def cv_ccp(tree, X_train, y_train):
@@ -59,7 +61,7 @@ def main():
 
     # save the performance and running time to a single json file
     import json
-    with open('notebooks/shrinkage/ccp_expr.json', 'w') as f:
+    with open('ccp_expr.json', 'w') as f:
         json.dump({"performance": performance, "running_time": running_time, "data_sizes": data_sizes}, f)
 
 
