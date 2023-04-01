@@ -1,7 +1,7 @@
 DATASETS_CLASSIFICATION = [
     # classification datasets from original random forests paper
     # page 9: https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf
-    ("sonar", "sonar", "pmlb"),
+    # ("sonar", "sonar", "pmlb"),
     ("heart", "heart", 'imodels'),
     ("breast-cancer", "breast_cancer", 'imodels'), # this is the wrong breast-cancer dataset (https://new.openml.org/search?type=data&sort=runs&id=13&status=active)
     ("haberman", "haberman", 'imodels'),
@@ -18,7 +18,7 @@ DATASETS_CLASSIFICATION = [
     # page 7: http://proceedings.mlr.press/v97/wang19a/wang19a.pdf
     ("juvenile", "juvenile_clean", 'imodels'),
     ("recidivism", "compas_two_year_clean", 'imodels'),
-    ("credit", "credit_card_clean", 'imodels'),
+    # ("credit", "credit_card_clean", 'imodels'),
     # ("readmission", 'readmission_clean', 'imodels'),  # v big
 ]
 
@@ -28,11 +28,14 @@ DATASETS_REGRESSION = [
     ('friedman1', 'friedman1', 'synthetic'),
     # ('friedman2', 'friedman2', 'synthetic'),
     ('friedman3', 'friedman3', 'synthetic'),
-    # ('abalone', '183', 'openml'),
     ("diabetes-regr", "diabetes", 'sklearn'),
+    # ("california-housing", "california_housing", 'sklearn'),  # this replaced boston-housing due to ethical issues
+    ("geographical-music", "4544_GeographicalOriginalofMusic", 'pmlb'),
+    ("red-wine", "wine_quality_red", 'pmlb'),
+    ('abalone', '183', 'openml'),
+    ("satellite-image", "294_satellite_image", 'pmlb'),
     ("california-housing", "california_housing", 'sklearn'),  # this replaced boston-housing due to ethical issues
-    # ("red-wine", "294_satellite_image", 'pmlb'),
-    # ("geographical-music", "1199_BNG_echoMonths", 'pmlb'),
+
     # ("breast-tumor", "1201_BNG_breastTumor", 'pmlb'),  # this one is v big (100k examples)
 
 ]
