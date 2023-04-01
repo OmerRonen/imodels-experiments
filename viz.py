@@ -490,7 +490,7 @@ if __name__ == '__main__':
     #                  save_path=f"{pth}/results/figs_interactions")
     plot_comparisons(datasets=DATASETS_REGRESSION,
                      models_to_include=["CART", "HSCART_Ridge", "HSCART_TV"],
-                     metric="r2")
-    # plot_comparisons(datasets=DATASETS_CLASSIFICATION,
-    #                  models_to_include=["CART", "HSCART_Ridge", "HSCART_TV"],
-    #                  metric="rocauc")
+                     metric="r2", save_name="tv_reg")
+    plot_comparisons(datasets=DATASETS_CLASSIFICATION,
+                     models_to_include=["CART", "HSCART_Ridge", "HSCART_TV"],
+                     metric="rocauc", save_name="tv_cls")

@@ -20,9 +20,9 @@ ESTIMATORS_CLASSIFICATION = [
      for n in LEAF_RANGE],
     # [Model('CART_(MAE)', GreedyTreeRegressor, 'max_depth', n, other_params={'criterion': 'absolute_error'})
     #  for n in TREE_DEPTHS],
-    # [ModelConfig('HSCART_Ridge', partial(HSTreeClassifierCV, estimator=DecisionTreeClassifier(max_leaf_nodes=n)),
-    #              'max_leaf_nodes', n, other_params={"shrinkage_scheme_":"ridge"})
-    #  for n in LEAF_RANGE],
+    [ModelConfig('HSCART_Ridge', partial(HSTreeClassifierCV, estimator=DecisionTreeClassifier(max_leaf_nodes=n)),
+                 'max_leaf_nodes', n, other_params={"shrinkage_scheme_":"ridge"})
+     for n in LEAF_RANGE],
     [ModelConfig('HSCART_TV', partial(HSTreeClassifierCV, estimator=DecisionTreeClassifier(max_leaf_nodes=n)),
                  'max_leaf_nodes', n, other_params={"shrinkage_scheme_": "tv"})
      for n in LEAF_RANGE]
