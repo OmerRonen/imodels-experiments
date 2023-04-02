@@ -12,18 +12,18 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
 
 
-
-
 def cv_ccp(tree, X_train, y_train):
     path = tree.cost_complexity_pruning_path(X_train, y_train)
     ccp_alphas, impurities = path.ccp_alphas, path.impurities
     cv_scores = []
+    is_cls = "Classifier" in tree.__class__.__name__
+    base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
     for ccp_alpha in ccp_alphas:
-        tree = DecisionTreeRegressor(random_state=0, ccp_alpha=ccp_alpha)
+        tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
         scores = cross_val_score(tree, X_train, y_train, cv=5)
         cv_scores.append(scores.mean())
     best_alpha = ccp_alphas[np.argmax(cv_scores)]
-    final_reg = DecisionTreeRegressor(random_state=42, ccp_alpha=best_alpha)
+    final_reg = base_tree(random_state=42, ccp_alpha=best_alpha)
     final_reg.fit(X_train, y_train)
     return final_reg
 
@@ -55,39 +55,40 @@ def evaluate_estimator(estimator, X, y):
 
 def main():
     # get the data
-    performance = {"ccp":[], "tv": []}
-    running_time = {"ccp":[], "tv": []}
+    performance = {"ccp": [], "tv": []}
+    running_time = {"ccp": [], "tv": []}
     data_sizes = []
+    dataset_names = []
     ests = {0: DecisionTreeRegressor, 1: DecisionTreeClassifier}
     for problem_type, datasets in enumerate([DATASETS_REGRESSION, DATASETS_CLASSIFICATION]):
-        for d in DATASETS_REGRESSION:
+        for d in datasets:
             X, y, feat_names = get_clean_dataset(d[1], data_source=d[2])
             # train test split
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
             data_sizes.append(X_train.shape[0])
+            dataset_names.append(d[0])
+
             # fit a decision tree
-            tree = ests[problem_type](random_state=42)#DecisionTreeRegressor(random_state=42)
+            tree = ests[problem_type](random_state=42)  # DecisionTreeRegressor(random_state=42)
             tree.fit(X_train, y_train)
             # calculate area under roc curve
-            cart_perf = evaluate_estimator(tree , X_test, y_test)
+            cart_perf = evaluate_estimator(tree, X_test, y_test)
             # perform ccp pruning and get the time and test performance (mean squared error)
             t0 = time.time()
             tree_ccp = cv_ccp(tree, X_train, y_train)
             ccp_time = time.time() - t0
             running_time['ccp'].append(ccp_time)
-            performance['ccp'].append(evaluate_estimator(tree_ccp, X_test, y_test)/cart_perf)
+            performance['ccp'].append(evaluate_estimator(tree_ccp, X_test, y_test) / cart_perf)
             # do tv shrinkage and get time and test performance
             t2 = time.time()
             tree_tv = HSTreeRegressorCV(copy.deepcopy(tree), shrinkage_scheme_="tv")
             tv_shrink_time = time.time() - t2
             running_time['tv'].append(tv_shrink_time)
-            performance['tv'].append(evaluate_estimator(tree_tv, X_test, y_test)/cart_perf)
-
-    # save the performance and running time to a single json file
-    import json
-    with open('ccp_expr.json', 'w') as f:
-        json.dump({"performance": performance, "running_time": running_time, "data_sizes": data_sizes}, f)
-
+            performance['tv'].append(evaluate_estimator(tree_tv, X_test, y_test) / cart_perf)
+            # save the performance and running time to a single json file
+            import json
+            with open('ccp_expr.json', 'w') as f:
+                json.dump({"performance": performance, "running_time": running_time, "data_sizes": data_sizes, "dataset": dataset_names}, f)
 
     # # plot performance vs time for both methods on the same plot, make the dot proportional to the size of the dataset
     # data_sizes = 4* (np.array(data_sizes) / np.max(data_sizes))
