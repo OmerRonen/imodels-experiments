@@ -22,10 +22,10 @@ def cv_ccp(tree, X_train, y_train):
     base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
     # get 20 alphas evenly spaced between the min and max
     ccp_alphas = np.arange(np.min(ccp_alphas), np.max(ccp_alphas), (np.max(ccp_alphas) - np.min(ccp_alphas)) / 20)
-
+    scoring = "roc_auc" if is_cls else "neg_mean_squared_error"
     for ccp_alpha in ccp_alphas:
         tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
-        scores = cross_val_score(tree, X_train, y_train, cv=5)
+        scores = cross_val_score(tree, X_train, y_train, cv=5, scoring=scoring)
         cv_scores.append(scores.mean())
     best_alpha = ccp_alphas[np.argmax(cv_scores)]
     final_reg = base_tree(random_state=42, ccp_alpha=best_alpha)
@@ -178,11 +178,11 @@ def plot_ccp_expr():
     # write the y label in latex
     # ax[1].set_ylabel(ylabel)
 
-    label_x = -0.15
+    label_x = -0.2
     s = 0.3
-    ax[1].text(label_x, s, r"MSE", color='purple', rotation='vertical', transform=ax[1].transAxes)
-    ax[1].text(label_x, s+0.1, r"or", color='black', rotation='vertical', transform=ax[1].transAxes)
-    ax[1].text(label_x, s+0.15, r"AUC", color='orange', rotation='vertical', transform=ax[1].transAxes)
+    ax[1].text(label_x, s + 0.03, r"MSE", color='purple', rotation='vertical', transform=ax[1].transAxes)
+    ax[1].text(label_x, s+0.115, r"or", color='black', rotation='vertical', transform=ax[1].transAxes)
+    ax[1].text(label_x, s+0.16, r"AUC", color='orange', rotation='vertical', transform=ax[1].transAxes)
     ax[1].text(label_x, s+0.25, r"relative to CART", color='black', rotation='vertical', transform=ax[1].transAxes)
 
 
