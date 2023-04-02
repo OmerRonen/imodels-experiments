@@ -18,6 +18,9 @@ def cv_ccp(tree, X_train, y_train):
     cv_scores = []
     is_cls = "Classifier" in tree.__class__.__name__
     base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
+    # get 20 alphas evenly spaced between the min and max
+    ccp_alphas = np.arange(np.min(ccp_alphas), np.max(ccp_alphas), (np.max(ccp_alphas) - np.min(ccp_alphas)) / 20)
+
     for ccp_alpha in ccp_alphas:
         tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
         scores = cross_val_score(tree, X_train, y_train, cv=5)
