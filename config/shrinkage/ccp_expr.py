@@ -200,7 +200,7 @@ def plot_ccp_expr():
     # ax.legend(loc = "lower right")
     # ax.set_title("Cross validated pruning")
     # # add dotted red line at y=1
-    # ax.axhline(y=1, color='r', linestyle='--', alpha=0.5)
+    ax[1].axhline(y=1, color='r', linestyle='--', alpha=0.5)
     fig.tight_layout()
     plt.savefig("ccp_expr.png", dpi=300)
 
