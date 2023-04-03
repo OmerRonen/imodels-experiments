@@ -23,6 +23,7 @@ def cv_ccp(tree, X_train, y_train):
     # get quantiles every 5% of the range of ccp_alphas
     ccp_alphas = np.quantile(path.ccp_alphas, np.arange(0, 1.02, 0.02))
     scoring = "roc_auc" if is_cls else "neg_mean_squared_error"
+    scoring = "neg_mean_squared_error"
     for ccp_alpha in ccp_alphas:
         tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
         scores = cross_val_score(tree, X_train, y_train, cv=5, scoring=scoring)
