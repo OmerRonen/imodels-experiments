@@ -20,8 +20,8 @@ def cv_ccp(tree, X_train, y_train):
     cv_scores = []
     is_cls = "Classifier" in tree.__class__.__name__
     base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
-    # get 20 alphas evenly spaced between the min and max
-    ccp_alphas = np.arange(np.min(ccp_alphas), np.max(ccp_alphas), (np.max(ccp_alphas) - np.min(ccp_alphas)) / 20)
+    # get quantiles every 5% of the range of ccp_alphas
+    ccp_alphas = np.quantile(path.ccp_alphas, np.arange(0, 1.02, 0.02))
     scoring = "roc_auc" if is_cls else "neg_mean_squared_error"
     for ccp_alpha in ccp_alphas:
         tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
@@ -206,5 +206,5 @@ def plot_ccp_expr():
 
 
 if __name__ == '__main__':
-    # main()
+    main()
     plot_ccp_expr()
