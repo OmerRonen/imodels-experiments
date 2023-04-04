@@ -7,12 +7,13 @@ import json
 from sklearn.metrics import mean_squared_error
 import time
 from sklearn.model_selection import train_test_split
-from imodels import get_clean_dataset, HSTreeRegressorCV
+from imodels import get_clean_dataset, HSTreeRegressorCV, HSTreeClassifierCV
 from sklearn.model_selection import cross_val_score
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 from datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
 
+FNAME = "ccp_expr"
 
 def cv_ccp(tree, X_train, y_train):
     path = tree.cost_complexity_pruning_path(X_train, y_train)
@@ -20,13 +21,14 @@ def cv_ccp(tree, X_train, y_train):
     cv_scores = []
     is_cls = "Classifier" in tree.__class__.__name__
     base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
+    # base_tree = DecisionTreeRegressor
     # get quantiles every 5% of the range of ccp_alphas
-    ccp_alphas = np.quantile(path.ccp_alphas, np.arange(0, 1.02, 0.02))
+    ccp_alphas = np.quantile(path.ccp_alphas, np.arange(0, 1.02, 0.1))
     scoring = "roc_auc" if is_cls else "neg_mean_squared_error"
-    scoring = "neg_mean_squared_error"
+    # scoring = "neg_mean_squared_error"
     for ccp_alpha in ccp_alphas:
-        tree = base_tree(random_state=0, ccp_alpha=ccp_alpha)
-        scores = cross_val_score(tree, X_train, y_train, cv=5, scoring=scoring)
+        tree = base_tree(random_state=42, ccp_alpha=ccp_alpha)
+        scores = cross_val_score(tree, X_train, y_train, cv=3, scoring=scoring)
         cv_scores.append(scores.mean())
     best_alpha = ccp_alphas[np.argmax(cv_scores)]
     final_reg = base_tree(random_state=42, ccp_alpha=best_alpha)
@@ -51,7 +53,8 @@ def evaluate_estimator(estimator, X, y):
     """
     if "Classifier" in estimator.__class__.__name__:
         # If the estimator is a binary classifier, use AUC
-        y_pred_proba = estimator.predict_proba(X)[:, 1]
+        # y_pred_proba = estimator.predict_proba(X)[:, 1]
+        y_pred_proba = estimator.predict(X)
         return roc_auc_score(y, y_pred_proba)
     else:
         # If the estimator is a regressor, use MSE
@@ -65,7 +68,8 @@ def main():
     running_time = {"ccp": {}, "tv": {}}
     data_sizes = []
     dataset_names = []
-    ests = {0: DecisionTreeRegressor, 1: DecisionTreeClassifier}
+    ests = {0: DecisionTreeRegressor, 1: DecisionTreeRegressor}
+    ests_shrink = {0: HSTreeRegressorCV, 1: HSTreeRegressorCV}
     for problem_type, datasets in enumerate([DATASETS_REGRESSION, DATASETS_CLASSIFICATION]):
         for d in datasets:
             tv_shrink_times = []
@@ -94,7 +98,7 @@ def main():
 
                 # do tv shrinkage and get time and test performance
                 t2 = time.time()
-                tree_tv = HSTreeRegressorCV(copy.deepcopy(tree), shrinkage_scheme_="tv")
+                tree_tv = ests_shrink[problem_type](copy.deepcopy(tree), shrinkage_scheme_="tv")
                 tv_shrink_time = time.time() - t2
                 tv_shrink_times.append(tv_shrink_time)
                 tv_perf.append(evaluate_estimator(tree_tv, X_test, y_test) / cart_perf)
@@ -104,7 +108,7 @@ def main():
             performance['ccp'][d[0]] = ccp_perf
             # save the performance and running time to a single json file
             import json
-            with open('ccp_expr.json', 'w') as f:
+            with open(f'{FNAME}.json', 'w') as f:
                 json.dump({"performance": performance, "running_time": running_time, "data_sizes": data_sizes,
                            "dataset": dataset_names}, f)
 
@@ -122,7 +126,7 @@ def main():
 
 def plot_ccp_expr():
     # load running_time, performance and data_sizes from config/shrinkage/ccp_expr.json file
-    with open('/accounts/campus/omer_ronen/projects/imodels-experiments/ccp_expr.json', 'r') as f:
+    with open(f'/accounts/campus/omer_ronen/projects/imodels-experiments/{FNAME}.json', 'r') as f:
         data = json.load(f)
     running_time_seeds = data['running_time']
     running_time = {}
@@ -203,7 +207,7 @@ def plot_ccp_expr():
     # # add dotted red line at y=1
     ax[1].axhline(y=1, color='r', linestyle='--', alpha=0.5)
     fig.tight_layout()
-    plt.savefig("ccp_expr.png", dpi=300)
+    plt.savefig(f"{FNAME}.png", dpi=300)
 
 
 if __name__ == '__main__':
