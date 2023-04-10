@@ -17,7 +17,7 @@ FNAME = "ccp_expr"
 
 def cv_ccp(tree, X_train, y_train):
     path = tree.cost_complexity_pruning_path(X_train, y_train)
-    ccp_alphas, impurities = path.ccp_alphas, path.impurities
+    # ccp_alphas, impurities = path.ccp_alphas, path.impurities
     cv_scores = []
     is_cls = "Classifier" in tree.__class__.__name__
     base_tree = DecisionTreeClassifier if is_cls else DecisionTreeRegressor
@@ -53,8 +53,8 @@ def evaluate_estimator(estimator, X, y):
     """
     if "Classifier" in estimator.__class__.__name__:
         # If the estimator is a binary classifier, use AUC
-        # y_pred_proba = estimator.predict_proba(X)[:, 1]
-        y_pred_proba = estimator.predict(X)
+        y_pred_proba = estimator.predict_proba(X)[:, 1]
+        # y_pred_proba = estimator.predict(X)
         return roc_auc_score(y, y_pred_proba)
     else:
         # If the estimator is a regressor, use MSE
@@ -68,8 +68,8 @@ def main():
     running_time = {"ccp": {}, "tv": {}}
     data_sizes = []
     dataset_names = []
-    ests = {0: DecisionTreeRegressor, 1: DecisionTreeRegressor}
-    ests_shrink = {0: HSTreeRegressorCV, 1: HSTreeRegressorCV}
+    ests = {0: DecisionTreeRegressor, 1: DecisionTreeClassifier}
+    ests_shrink = {0: HSTreeRegressorCV, 1: HSTreeClassifierCV}
     for problem_type, datasets in enumerate([DATASETS_REGRESSION, DATASETS_CLASSIFICATION]):
         for d in datasets:
             tv_shrink_times = []
@@ -98,7 +98,13 @@ def main():
 
                 # do tv shrinkage and get time and test performance
                 t2 = time.time()
-                tree_tv = ests_shrink[problem_type](copy.deepcopy(tree), shrinkage_scheme_="tv")
+                # reg range is 1 to 5 in increasing powers of 10 from 0 to 1e3
+                reg_range = [0] + list(np.logspace(-6, 3, 100))
+                scoring = "roc_auc" if problem_type == 1 else "neg_mean_squared_error"
+
+                tree_tv = ests_shrink[problem_type](copy.deepcopy(tree),
+                                                    shrinkage_scheme_="tv", reg_param_list=reg_range,
+                                                    scoring=scoring)
                 tv_shrink_time = time.time() - t2
                 tv_shrink_times.append(tv_shrink_time)
                 tv_perf.append(evaluate_estimator(tree_tv, X_test, y_test) / cart_perf)
@@ -194,17 +200,6 @@ def plot_ccp_expr():
 
     # ax[1].legend()
     ax[1].set_title("Performance")
-
-    # fig, ax = plt.subplots(1, 1, figsize=(4, 4))
-    # # plt performance vs time for both methods on the same plot, make the dot proportional to the size of the dataset
-    # ax.scatter(np.log(np.array(running_time['ccp'])+1), performance['ccp'], s=data_sizes, label='ccp')
-    # ax.scatter(np.log(np.array(running_time['tv'])+1), performance['tv'], s=data_sizes, label='tv')
-    # ax.set_xlabel('running time (seconds, log scale)')
-    # ax.set_ylabel('test performance (MSE or AUC) relative to CART')
-    #
-    # ax.legend(loc = "lower right")
-    # ax.set_title("Cross validated pruning")
-    # # add dotted red line at y=1
     ax[1].axhline(y=1, color='r', linestyle='--', alpha=0.5)
     fig.tight_layout()
     plt.savefig(f"{FNAME}.png", dpi=300)
