@@ -13,7 +13,7 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 from datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
 
-FNAME = "ccp_expr"
+FNAME = "ccp_expr_10_grid"
 
 def cv_ccp(tree, X_train, y_train):
     path = tree.cost_complexity_pruning_path(X_train, y_train)
@@ -99,12 +99,13 @@ def main():
                 # do tv shrinkage and get time and test performance
                 t2 = time.time()
                 # reg range is 1 to 5 in increasing powers of 10 from 0 to 1e3
-                reg_range = [0] + list(np.logspace(-6, 3, 100))
+                reg_range = [0] + list(np.logspace(-6, 6, 10))
                 scoring = "roc_auc" if problem_type == 1 else "neg_mean_squared_error"
 
                 tree_tv = ests_shrink[problem_type](copy.deepcopy(tree),
                                                     shrinkage_scheme_="tv", reg_param_list=reg_range,
                                                     scoring=scoring)
+                tree_tv.fit(X_train, y_train)
                 tv_shrink_time = time.time() - t2
                 tv_shrink_times.append(tv_shrink_time)
                 tv_perf.append(evaluate_estimator(tree_tv, X_test, y_test) / cart_perf)
@@ -206,5 +207,5 @@ def plot_ccp_expr():
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     plot_ccp_expr()
