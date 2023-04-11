@@ -13,7 +13,7 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 from datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
 
-FNAME = "ccp_expr_10_grid"
+FNAME = "ccp_expr_10_grid_ridge"
 
 def cv_ccp(tree, X_train, y_train):
     path = tree.cost_complexity_pruning_path(X_train, y_train)
@@ -64,8 +64,8 @@ def evaluate_estimator(estimator, X, y):
 
 def main():
     # get the data
-    performance = {"ccp": {}, "tv": {}}
-    running_time = {"ccp": {}, "tv": {}}
+    performance = {"ccp": {}, "tv": {}, "ridge": {}}
+    running_time = {"ccp": {}, "tv": {}, "ridge": {}}
     data_sizes = []
     dataset_names = []
     ests = {0: DecisionTreeRegressor, 1: DecisionTreeClassifier}
@@ -74,8 +74,10 @@ def main():
         for d in datasets:
             tv_shrink_times = []
             ccp_times = []
+            ridge_shrink_times = []
             tv_perf = []
             ccp_perf = []
+            ridge_perf = []
             X, y, feat_names = get_clean_dataset(d[1], data_source=d[2])
 
             data_sizes.append(int(0.7 * X.shape[0]))
@@ -109,10 +111,21 @@ def main():
                 tv_shrink_time = time.time() - t2
                 tv_shrink_times.append(tv_shrink_time)
                 tv_perf.append(evaluate_estimator(tree_tv, X_test, y_test) / cart_perf)
+                # now do the same for ridge shrinkage
+                t3 = time.time()
+                tree_ridge = ests_shrink[problem_type](copy.deepcopy(tree),
+                                                       shrinkage_scheme_="ridge", reg_param_list=reg_range,
+                                                       scoring=scoring)
+                tree_ridge.fit(X_train, y_train)
+                ridge_shrink_time = time.time() - t3
+                ridge_shrink_times.append(ridge_shrink_time)
+                ridge_perf.append(evaluate_estimator(tree_ridge, X_test, y_test) / cart_perf)
             running_time['tv'][d[0]] = tv_shrink_times
             performance['tv'][d[0]] = tv_perf
             running_time['ccp'][d[0]] = ccp_times
             performance['ccp'][d[0]] = ccp_perf
+            running_time['ridge'][d[0]] = ridge_shrink_times
+            performance['ridge'][d[0]] = ridge_perf
             # save the performance and running time to a single json file
             import json
             with open(f'{FNAME}.json', 'w') as f:
@@ -140,22 +153,25 @@ def plot_ccp_expr():
     # get the average running time across 10 seeds for both ccp and tv
     running_time['ccp'] = np.mean(np.array(list(running_time_seeds['ccp'].values())), axis=1)
     running_time['tv'] = np.mean(np.array(list(running_time_seeds['tv'].values())), axis=1)
+    running_time['ridge'] = np.mean(np.array(list(running_time_seeds['ridge'].values())), axis=1)
     # do the same for performance
     performance_seeds = data['performance']
     performance = {}
     performance['ccp'] = np.mean(np.array(list(performance_seeds['ccp'].values())), axis=1)
     performance['tv'] = np.mean(np.array(list(performance_seeds['tv'].values())), axis=1)
+    performance['ridge'] = np.mean(np.array(list(performance_seeds['ridge'].values())), axis=1)
     # now get the stds for the means (divide by sqrt number of seeds) across 10 seeds for performance
     performance_std = {}
     performance_std['ccp'] = np.std(np.array(list(performance_seeds['ccp'].values())), axis=1) / np.sqrt(10)
     performance_std['tv'] = np.std(np.array(list(performance_seeds['tv'].values())), axis=1) / np.sqrt(10)
+    performance_std['ridge'] = np.std(np.array(list(performance_seeds['ridge'].values())), axis=1) / np.sqrt(10)
 
     data_sizes = data['data_sizes']
     # data_sizes = 100 * (np.array(data_sizes) / np.max(data_sizes))
 
     # find nice color for ccp and tv
     import matplotlib
-    colors = ["green", "blue"]
+    colors = ["green", "blue", "red"]
     # plot the results
 
     # two panels scatter plots, one is scatter of running time vs data size and the other is performance per dataset bar plot add stds
@@ -168,15 +184,19 @@ def plot_ccp_expr():
                    label='ccp', c=colors[0])
     ax[0].errorbar(data_sizes, np.log(np.array(running_time['tv']) + 1), yerr=performance_std['tv'], fmt='o', label='tv',
                    c=colors[1])
+    ax[0].errorbar(data_sizes, np.log(np.array(running_time['ridge']) + 1), yerr=performance_std['ridge'], fmt='o',
+                   label='ridge', c=colors[2])
     ax[0].set_xlabel('data size')
     ax[0].set_ylabel('running time (log seconds)')
     ax[0].legend()
     ax[0].set_title("Scaling of running time")
     # bar plot of performance per dataset put the two methods side by side and orientate the x ticks add stds
-    ax[1].bar(np.arange(len(performance['ccp'])) - 0.2, performance['ccp'], width=0.4, label='ccp', color=colors[0],
+    ax[1].bar(np.arange(len(performance['ccp'])) - 0.2, performance['ccp'], width=0.2, label='ccp', color=colors[0],
               yerr=performance_std['ccp'])
-    ax[1].bar(np.arange(len(performance['tv'])) + 0.2, performance['tv'], width=0.4, label='tv', color=colors[1],
+    ax[1].bar(np.arange(len(performance['tv'])), performance['tv'], width=0.2, label='tv', color=colors[1],
               yerr=performance_std['tv'])
+    ax[1].bar(np.arange(len(performance['ridge'])) + 0.2, performance['ridge'], width=0.2, label='ridge', color=colors[2],
+              yerr=performance_std['ridge'])
     ax[1].set_xticks(np.arange(len(performance['ccp'])))
     ax[1].set_xticklabels(data['dataset'], rotation=90)
     # color the datasets ticks blue if they are clasisfication and red if they are regression
