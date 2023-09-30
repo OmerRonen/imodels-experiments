@@ -13,9 +13,45 @@ from sklearn.metrics import roc_auc_score, r2_score
 
 from imodels import FIGSRegressor, FIGSClassifier, get_clean_dataset
 
-from config.figs.datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
-from util import remove_x_axis_duplicates, merge_overlapping_curves
+# from config.figs.datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
+DATASETS_CLASSIFICATION = [
+    # classification datasets from original random forests paper
+    # page 9: https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf
+    ("sonar", "sonar", "pmlb"),
+    ("heart", "heart", 'imodels'),
+    ("breast-cancer", "breast_cancer", 'imodels'), # this is the wrong breast-cancer dataset (https://new.openml.org/search?type=data&sort=runs&id=13&status=active)
+    ("haberman", "haberman", 'imodels'),
+    ("ionosphere", "ionosphere", 'pmlb'),
+    ("diabetes", "diabetes", "pmlb"),
+    # ("liver", "8", "openml"), # note: we omit this dataset bc it's label was found to be incorrect (see caveat here: https://archive.ics.uci.edu/ml/datasets/liver+disorders#:~:text=The%207th%20field%20(selector)%20has%20been%20widely%20misinterpreted%20in%20the%20past%20as%20a%20dependent%20variable%20representing%20presence%20or%20absence%20of%20a%20liver%20disorder.)
+    # ("credit-g", "credit_g", 'imodels'), # like german-credit, but more feats
+    ("german-credit", "german", "pmlb"),
 
+    # clinical-decision rules
+    # ("iai-pecarn", "iai_pecarn.csv", "imodels"),
+
+    # popular classification datasets used in rule-based modeling / fairness
+    # page 7: http://proceedings.mlr.press/v97/wang19a/wang19a.pdf
+    ("juvenile", "juvenile_clean", 'imodels'),
+    ("recidivism", "compas_two_year_clean", 'imodels'),
+    ("credit", "credit_card_clean", 'imodels'),
+    ("readmission", 'readmission_clean', 'imodels'),  # v big
+]
+
+DATASETS_REGRESSION = [
+    # leo-breiman paper random forest uses some UCI datasets as well
+    # pg 23: https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf
+    ('friedman1', 'friedman1', 'synthetic'),
+    ('friedman2', 'friedman2', 'synthetic'),
+    ('friedman3', 'friedman3', 'synthetic'),
+    ("diabetes-regr", "diabetes", 'sklearn'),
+    ('abalone', '183', 'openml'),
+    ("echo-months", "1199_BNG_echoMonths", 'pmlb'),
+    ("satellite-image", "294_satellite_image", 'pmlb'),
+    ("california-housing", "california_housing", 'sklearn'),  # this replaced boston-housing due to ethical issues
+    ("breast-tumor", "1201_BNG_breastTumor", 'pmlb'),  # this one is v big (100k examples)
+
+]
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
@@ -105,9 +141,9 @@ def figs_vs_boosting(X, y, budget, n_seeds=10):
 
 
 def analyze_datasets(datasets, fig_name=None):
-    n_cols = 2
+    n_cols = 3
 
-    n_rows = len(datasets) // n_cols
+    n_rows = int((len(datasets) // n_cols) + 1)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 15))
     budgets = [8, 16, 32 , 64, 128]
     n_seeds = 10
