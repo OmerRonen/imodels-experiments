@@ -117,9 +117,10 @@ def tune_boosting(X, y, budget, is_classification=True):
     return model_best
 
 
-def figs_vs_boosting(X, y, budget, n_seeds=10):
+def figs_vs_boosting(X, y, budget,depth, n_seeds=10):
     is_classification = len(np.unique(y)) == 2
     metric = roc_auc_score if is_classification else r2_score
+    n_estimators = budget // (np.sum([2**i for i in range(depth)]))
 
     scores = {"figs": [], "boosting": []}
 
@@ -132,20 +133,25 @@ def figs_vs_boosting(X, y, budget, n_seeds=10):
         figs.fit(X_train, y_train)
         figs_score = metric(y_test, figs.predict(X_test))
 
-        gb_model = tune_boosting(X_train, y_train, budget, is_classification)
-        gb_score = metric(y_test, gb_model.predict(X_test))
-
+        gb_model = GradientBoostingClassifier if is_classification else GradientBoostingRegressor
+        gb = gb_model(n_estimators=n_estimators, max_depth=depth)
+        gb.fit(X_train, y_train)
+        gb_score = metric(y_test, gb.predict(X_test))
         scores["figs"].append(figs_score)
         scores["boosting"].append(gb_score)
     return scores
 
 
-def analyze_datasets(datasets, fig_name=None):
+def analyze_datasets(datasets,depth, fig_name=None):
     n_cols = 3
+    n_rows = int(np.ceil(len(datasets) // n_cols))
 
-    n_rows = int((len(datasets) // n_cols) + 1)
+    n_rules_per_tree = np.sum([2**i for i in range(depth)])
+
+    # make a list of multipication of n_rules_per_tree as long as it is less than 20
+    budgets = [n_rules_per_tree * i for i in range(1, 20) if n_rules_per_tree * i < 20]
+
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 15))
-    budgets = [8, 16, 32 , 64, 128]
     n_seeds = 10
     for i, d in enumerate(datasets):
         if isinstance(d, str):
@@ -157,7 +163,7 @@ def analyze_datasets(datasets, fig_name=None):
         means = {"figs": [], "boosting": []}
         std = {"figs": [], "boosting": []}
         for budget in budgets:
-            scores = figs_vs_boosting(X, y, budget=budget, n_seeds=n_seeds)
+            scores = figs_vs_boosting(X, y, budget=budget, n_seeds=n_seeds, depth=depth)
             means["figs"].append(np.mean(scores["figs"]))
             means["boosting"].append(np.mean(scores["boosting"]))
             std["figs"].append(np.std(scores["figs"]) / np.sqrt(n_seeds))
@@ -177,8 +183,9 @@ def analyze_datasets(datasets, fig_name=None):
 
 
 def main():
-    analyze_datasets(DATASETS_REGRESSION, fig_name="figs_vs_boosting_regression")
-    analyze_datasets(DATASETS_CLASSIFICATION, fig_name="figs_vs_boosting_classification")
+    for depth in [1,2,3]:
+        analyze_datasets(DATASETS_REGRESSION, fig_name=f"figs_vs_boosting_regression_depth_{depth}", depth=depth)
+        analyze_datasets(DATASETS_CLASSIFICATION, fig_name=f"figs_vs_boosting_classification_{depth}", depth=depth)
 
 
 if __name__ == '__main__':
