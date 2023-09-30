@@ -1,0 +1,149 @@
+import logging
+import matplotlib as mpl
+import numpy as np
+import os
+import dvu
+from matplotlib import pyplot as plt
+from os.path import join as oj
+from os.path import dirname
+
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, r2_score
+
+from imodels import FIGSRegressor, FIGSClassifier, get_clean_dataset
+
+from config.figs.datasets import DATASETS_REGRESSION, DATASETS_CLASSIFICATION
+from util import remove_x_axis_duplicates, merge_overlapping_curves
+
+LOGGER = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+dvu.set_style()
+mpl.rcParams['figure.dpi'] = 250
+
+cb2 = '#66ccff'
+cb = '#1f77b4'
+cr = '#cc0000'
+cp = '#cc3399'
+cy = '#d8b365'
+cg = '#5ab4ac'
+
+DIR_FIGS = oj(dirname(os.path.realpath(__file__)), 'figures')
+DSET_METADATA = {'sonar': (208, 60), 'heart': (270, 15), 'breast-cancer': (277, 17), 'haberman': (306, 3),
+                 'ionosphere': (351, 34), 'diabetes': (768, 8), 'german-credit': (1000, 20), 'juvenile': (3640, 286),
+                 'recidivism': (6172, 20), 'credit': (30000, 33), 'readmission': (101763, 150), 'friedman1': (200, 10),
+                 'friedman2': (200, 4), 'friedman3': (200, 4), 'abalone': (4177, 8), 'diabetes-regr': (442, 10),
+                 'california-housing': (20640, 8), 'satellite-image': (6435, 36), 'echo-months': (17496, 9),
+                 'breast-tumor': (116640, 9), "vo_pati": (100, 100), "radchenko_james": (300, 50),
+                 'tbi-pecarn': (42428, 121), 'csi-pecarn': (3313, 36), 'iai-pecarn': (12044, 58),
+                 }
+
+COLORS = {
+    'FIGS': 'black',
+    'CART': 'orange',  # cp,
+    'Rulefit': 'green',
+    'C45': cb,
+    'CART_(MSE)': 'orange',
+    'CART_(MAE)': cg,
+    'FIGS_(Reweighted)': cg,
+    'FIGS_(Include_Linear)': cb,
+    'GBDT-1': cp,
+    'GBDT-2': 'gray',
+    'Dist-GB-FIGS': cg,
+    'Dist-RF-FIGS': cp,
+    'Dist-RF-FIGS-3': 'green',
+    'RandomForest': 'gray',
+    'GBDT': 'black',
+    'BFIGS': 'green',
+    'TAO': cb,
+}
+def tune_boosting(X, y, budget, is_classification=True):
+    gb_model = GradientBoostingClassifier if is_classification else GradientBoostingRegressor
+    metric = roc_auc_score if is_classification else r2_score
+    # split data into train and test
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    models_scores = {}
+    models = {}
+    for n_trees in range(1, int(budget / 2)):
+        max_depth = max(int(np.floor(np.log2(budget / n_trees))), 1)
+        LOGGER.info(f"tuning model with {n_trees} trees and max depth {max_depth}")
+
+        model = gb_model(n_estimators=n_trees + 1, max_depth=max_depth)
+        model.fit(X_train, y_train)
+        models_scores[n_trees] = metric(y_test, model.predict(X_test))
+        models[n_trees] = model
+    # fit the best model on all the data
+    n_trees_best = max(models_scores, key=models_scores.get)
+    max_depth = int(np.ceil(np.log2(n_trees_best + 1)))
+    model_best = gb_model(n_estimators=n_trees_best + 1, max_depth=max_depth)
+    model_best.fit(X, y)
+    return model_best
+
+
+def figs_vs_boosting(X, y, budget, n_seeds=10):
+    is_classification = len(np.unique(y)) == 2
+    metric = roc_auc_score if is_classification else r2_score
+
+    scores = {"figs": [], "boosting": []}
+
+    for _ in range(n_seeds):
+        # split to train and test
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+        figs_model = FIGSClassifier if is_classification else FIGSRegressor
+        figs = figs_model(max_rules=budget)
+        figs.fit(X_train, y_train)
+        figs_score = metric(y_test, figs.predict(X_test))
+
+        gb_model = tune_boosting(X_train, y_train, budget, is_classification)
+        gb_score = metric(y_test, gb_model.predict(X_test))
+
+        scores["figs"].append(figs_score)
+        scores["boosting"].append(gb_score)
+    return scores
+
+
+def analyze_datasets(datasets, fig_name=None):
+    n_cols = 2
+
+    n_rows = len(datasets) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 15))
+    budgets = [8, 16, 32 , 64, 128]
+    n_seeds = 10
+    for i, d in enumerate(datasets):
+        if isinstance(d, str):
+            dset_name = d
+        elif isinstance(d, tuple):
+            dset_name = d[0]
+        ax = axes[i // n_cols, i % n_cols]
+        X, y, feat_names = get_clean_dataset(d[1], data_source=d[2])
+        means = {"figs": [], "boosting": []}
+        std = {"figs": [], "boosting": []}
+        for budget in budgets:
+            scores = figs_vs_boosting(X, y, budget=budget, n_seeds=n_seeds)
+            means["figs"].append(np.mean(scores["figs"]))
+            means["boosting"].append(np.mean(scores["boosting"]))
+            std["figs"].append(np.std(scores["figs"]) / np.sqrt(n_seeds))
+            std["boosting"].append(np.std(scores["boosting"]) / np.sqrt(n_seeds))
+        # make plot with error bars vs budget
+        ax.errorbar(budgets, means["figs"], yerr=std["figs"], label="FIGS", color=COLORS["FIGS"])
+        ax.errorbar(budgets, means["boosting"], yerr=std["boosting"], label="Gradient Boosting", color=COLORS["GBDT-1"])
+        ax.set_title(dset_name.capitalize().replace('-', ' ') + f' ($n={DSET_METADATA.get(dset_name, (-1))[0]}$)',
+                  fontsize='medium')
+        ax.set_xlabel("# of rules")
+        ylab = "AUC" if len(np.unique(y)) == 2 else "R2"
+        ax.set_ylabel(ylab)
+        ax.legend()
+    plt.tight_layout()
+    # fig_name = "figs_vs_boosting_regression.png" if
+    plt.savefig(f"{fig_name}.png")
+
+
+def main():
+    analyze_datasets(DATASETS_REGRESSION, fig_name="figs_vs_boosting_regression")
+    analyze_datasets(DATASETS_CLASSIFICATION, fig_name="figs_vs_boosting_classification")
+
+
+if __name__ == '__main__':
+    main()
