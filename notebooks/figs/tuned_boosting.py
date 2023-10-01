@@ -3,6 +3,7 @@ import matplotlib as mpl
 import numpy as np
 import os
 import dvu
+import pickle
 from matplotlib import pyplot as plt
 from os.path import join as oj
 from os.path import dirname
@@ -17,12 +18,12 @@ from imodels import FIGSRegressor, FIGSClassifier, get_clean_dataset
 DATASETS_CLASSIFICATION = [
     # classification datasets from original random forests paper
     # page 9: https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf
-    ("sonar", "sonar", "pmlb"),
-    ("heart", "heart", 'imodels'),
-    ("breast-cancer", "breast_cancer", 'imodels'), # this is the wrong breast-cancer dataset (https://new.openml.org/search?type=data&sort=runs&id=13&status=active)
-    ("haberman", "haberman", 'imodels'),
-    ("ionosphere", "ionosphere", 'pmlb'),
-    ("diabetes", "diabetes", "pmlb"),
+    # ("sonar", "sonar", "pmlb"),
+    # ("heart", "heart", 'imodels'),
+    # ("breast-cancer", "breast_cancer", 'imodels'), # this is the wrong breast-cancer dataset (https://new.openml.org/search?type=data&sort=runs&id=13&status=active)
+    # ("haberman", "haberman", 'imodels'),
+    # ("ionosphere", "ionosphere", 'pmlb'),
+    # ("diabetes", "diabetes", "pmlb"),
     # ("liver", "8", "openml"), # note: we omit this dataset bc it's label was found to be incorrect (see caveat here: https://archive.ics.uci.edu/ml/datasets/liver+disorders#:~:text=The%207th%20field%20(selector)%20has%20been%20widely%20misinterpreted%20in%20the%20past%20as%20a%20dependent%20variable%20representing%20presence%20or%20absence%20of%20a%20liver%20disorder.)
     # ("credit-g", "credit_g", 'imodels'), # like german-credit, but more feats
     ("german-credit", "german", "pmlb"),
@@ -133,7 +134,8 @@ def figs_vs_boosting(X, y, budget,depth, n_seeds=10, only_boosting=False):
             gb_model = GradientBoostingClassifier if is_classification else GradientBoostingRegressor
             gb = gb_model(n_estimators=n_estimators, max_depth=depth)
             gb.fit(X_train, y_train)
-            gb_score = metric(y_test, gb.predict(X_test))
+            preds = gb.predict_proba(X_test) if is_classification else gb.predict(X_test)
+            gb_score = metric(y_test, preds)
             scores["boosting"].append(gb_score)
         else:
             scores["boosting"].append(np.nan)
@@ -144,7 +146,8 @@ def figs_vs_boosting(X, y, budget,depth, n_seeds=10, only_boosting=False):
         figs_model = FIGSClassifier if is_classification else FIGSRegressor
         figs = figs_model(max_rules=budget)
         figs.fit(X_train, y_train)
-        figs_score = metric(y_test, figs.predict(X_test))
+        preds_figs = figs.predict_proba(X_test) if is_classification else figs.predict(X_test)
+        figs_score = metric(y_test, preds_figs)
         scores["figs"].append(figs_score)
 
 
@@ -188,6 +191,11 @@ def analyze_datasets(datasets, fig_name=None):
                 means[f"boosting d{d}"].append(np.nanmean(scores["boosting"]))
                 std[f"boosting d{d}"].append(np.nanstd(scores["boosting"]) / np.sqrt(n_seeds))
         # make plot with error bars vs budget
+        ds_data = {"means": means, "std": std, "budgets": budgets}
+        # save the pickle file
+        fname = f"figs_vs_boosting_{dset_name}_cls.pkl" if len(np.unique(y)) == 2 else f"figs_vs_boosting_{dset_name}_reg.pkl"
+        with open(fname, "wb") as f:
+            pickle.dump(ds_data, f)
         ax.errorbar(budgets, means["figs"], yerr=std["figs"], label="FIGS", color=COLORS["FIGS"])
         for depth in [1,2,3]:
             ax.errorbar(budgets, means[f"boosting d{depth}"], yerr=std[f"boosting d{depth}"], label=f"GB (max_depth = {depth})", color=COLORS[f"GBDT-{depth}"])
@@ -204,8 +212,8 @@ def analyze_datasets(datasets, fig_name=None):
 
 def main():
     # for depth in [1,2,3]:
-    analyze_datasets(DATASETS_REGRESSION, fig_name=f"figs_vs_boosting_regression")
     analyze_datasets(DATASETS_CLASSIFICATION, fig_name=f"figs_vs_boosting_classification")
+    analyze_datasets(DATASETS_REGRESSION, fig_name=f"figs_vs_boosting_regression")
 
 
 if __name__ == '__main__':
