@@ -132,7 +132,7 @@ def figs_vs_boosting(X, y, budget,depth, n_seeds=10, only_boosting=False):
 
         if n_estimators > 0:
             gb_model = GradientBoostingClassifier if is_classification else GradientBoostingRegressor
-            gb = gb_model(n_estimators=n_estimators, max_depth=depth)
+            gb = gb_model(n_estimators=n_estimators, max_depth=depth, learning_rate=1)
             gb.fit(X_train, y_train)
             preds = gb.predict_proba(X_test)[:, 1] if is_classification else gb.predict(X_test)
             gb_score = metric(y_test, preds)
@@ -172,7 +172,7 @@ def analyze_datasets(datasets, fig_name=None):
             dset_name = d[0]
         ax = axes[i // n_cols, i % n_cols]
         X, y, feat_names = get_clean_dataset(d[1], data_source=d[2])
-        f_name = f"figs_vs_boosting_{dset_name}_cls.pkl" if len(np.unique(y)) == 2 else f"figs_vs_boosting_{dset_name}_reg.pkl"
+        f_name = f"figs_vs_boosting_{dset_name}_lr1_cls.pkl" if len(np.unique(y)) == 2 else f"figs_vs_boosting_{dset_name}_lr1_reg.pkl"
         if os.path.exists(f_name):
             ds_data = pickle.load(open(f_name, "rb"))
             means = ds_data["means"]
@@ -217,7 +217,7 @@ def analyze_datasets(datasets, fig_name=None):
         # ax.legend()
     plt.tight_layout()
     # fig_name = "figs_vs_boosting_regression.png" if
-    plt.savefig(f"{fig_name}.png", dpi=300)
+    plt.savefig(f"{fig_name}_lr1.png", dpi=300)
 
 
 def main():
